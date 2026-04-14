@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Generator</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #242734;
+      --border: #2e3241;
+      --text: #e4e6ed;
+      --text2: #9ca0b0;
+      --accent: #6c63ff;
+      --accent-hover: #5a52e0;
+      --success: #34d399;
+      --error: #f87171;
+      --warning: #fbbf24;
+      --radius: 12px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .hidden { display: none !important; }
+
+    /* ── Auth Screen ── */
+    #auth-screen {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .auth-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 40px;
+      width: 100%;
+      max-width: 420px;
+    }
+
+    .auth-card h1 {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      text-align: center;
+    }
+
+    .auth-card p.subtitle {
+      color: var(--text2);
+      text-align: center;
+      margin-bottom: 32px;
+      font-size: 14px;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 0;
+      margin-bottom: 24px;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      background: var(--surface2);
+      color: var(--text2);
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all .2s;
+    }
+
+    .tab-btn.active {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 13px;
+      color: var(--text2);
+      margin-bottom: 6px;
+      font-weight: 500;
+    }
+
+    input, textarea, select {
+      width: 100%;
+      padding: 10px 14px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 14px;
+      outline: none;
+      transition: border-color .2s;
+    }
+
+    input:focus, textarea:focus, select:focus {
+      border-color: var(--accent);
+    }
+
+    textarea { resize: vertical; min-height: 80px; }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .2s;
+      width: 100%;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .btn-primary:hover { background: var(--accent-hover); }
+
+    .btn-secondary {
+      background: var(--surface2);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover { background: var(--border); }
+
+    .btn-sm {
+      padding: 6px 14px;
+      font-size: 13px;
+      width: auto;
+    }
+
+    .alert {
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      margin-bottom: 16px;
+    }
+
+    .alert-error { background: rgba(248,113,113,.15); color: var(--error); }
+    .alert-success { background: rgba(52,211,153,.15); color: var(--success); }
+    .alert-warning { background: rgba(251,191,36,.15); color: var(--warning); }
+
+    .api-key-box {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      font-family: monospace;
+      font-size: 13px;
+      word-break: break-all;
+      margin-bottom: 16px;
+    }
+
+    /* ── App Layout ── */
+    #app-screen {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      width: 260px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+
+    .sidebar h2 {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 24px;
+    }
+
+    .sidebar-nav {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      flex: 1;
+    }
+
+    .nav-btn {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border: none;
+      background: transparent;
+      color: var(--text2);
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      text-align: left;
+      transition: all .15s;
+    }
+
+    .nav-btn:hover { background: var(--surface2); color: var(--text); }
+    .nav-btn.active { background: var(--accent); color: #fff; }
+
+    .balance-card {
+      background: var(--surface2);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .balance-label {
+      font-size: 12px;
+      color: var(--text2);
+      text-transform: uppercase;
+      letter-spacing: .5px;
+    }
+
+    .balance-value {
+      font-size: 28px;
+      font-weight: 700;
+      margin: 4px 0 12px;
+    }
+
+    .logout-btn {
+      margin-top: auto;
+      padding: 10px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text2);
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all .15s;
+    }
+
+    .logout-btn:hover { background: var(--surface2); color: var(--error); }
+
+    .main-content {
+      flex: 1;
+      padding: 32px;
+      overflow-y: auto;
+    }
+
+    .page-title {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 24px;
+    }
+
+    /* ── Generation Form ── */
+    .gen-type-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .gen-type-card {
+      background: var(--surface);
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      cursor: pointer;
+      transition: all .2s;
+      text-align: center;
+    }
+
+    .gen-type-card:hover { border-color: var(--accent); }
+    .gen-type-card.selected { border-color: var(--accent); background: rgba(108,99,255,.1); }
+
+    .gen-type-card .icon { font-size: 28px; margin-bottom: 8px; }
+    .gen-type-card .label { font-size: 13px; font-weight: 600; }
+    .gen-type-card .cost { font-size: 12px; color: var(--text2); margin-top: 4px; }
+
+    .gen-form {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      max-width: 640px;
+    }
+
+    .params-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    /* ── Tasks List ── */
+    .task-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-bottom: 12px;
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+    }
+
+    .task-card .task-info { flex: 1; }
+    .task-card .task-prompt { font-size: 14px; margin-bottom: 8px; }
+
+    .task-meta {
+      display: flex;
+      gap: 16px;
+      font-size: 12px;
+      color: var(--text2);
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .status-created { background: rgba(156,160,176,.2); color: var(--text2); }
+    .status-queued { background: rgba(251,191,36,.2); color: var(--warning); }
+    .status-processing { background: rgba(108,99,255,.2); color: var(--accent); }
+    .status-completed { background: rgba(52,211,153,.2); color: var(--success); }
+    .status-failed { background: rgba(248,113,113,.2); color: var(--error); }
+
+    .task-result img, .task-result video {
+      max-width: 320px;
+      border-radius: 8px;
+      margin-top: 8px;
+    }
+
+    .task-actions { display: flex; gap: 8px; margin-top: 8px; }
+
+    /* ── Topup Modal ── */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 32px;
+      width: 100%;
+      max-width: 400px;
+    }
+
+    .modal h3 { font-size: 20px; margin-bottom: 20px; }
+
+    /* ── Responsive ── */
+    @media (max-width: 768px) {
+      #app-screen { flex-direction: column; }
+      .sidebar { width: 100%; border-right: none; border-bottom: 1px solid var(--border); }
+      .params-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══ Auth Screen ═══ -->
+<div id="auth-screen">
+  <div class="auth-card">
+    <h1>AI Generator</h1>
+    <p class="subtitle">Image & Video Generation Service</p>
+
+    <div class="tabs">
+      <button class="tab-btn active" onclick="showTab('login')">Login</button>
+      <button class="tab-btn" onclick="showTab('register')">Register</button>
+    </div>
+
+    <div id="auth-alert"></div>
+
+    <!-- Login -->
+    <div id="tab-login">
+      <div class="form-group">
+        <label>API Key</label>
+        <input type="text" id="login-key" placeholder="Paste your API key">
+      </div>
+      <button class="btn btn-primary" onclick="doLogin()">Sign In</button>
+    </div>
+
+    <!-- Register -->
+    <div id="tab-register" class="hidden">
+      <div class="form-group">
+        <label>User ID</label>
+        <input type="text" id="reg-userid" placeholder="your-unique-id">
+      </div>
+      <button class="btn btn-primary" onclick="doRegister()">Create Account</button>
+      <div id="reg-result" class="hidden" style="margin-top:16px;">
+        <div class="alert alert-success">Account created! Save your API key:</div>
+        <div class="api-key-box" id="reg-apikey"></div>
+        <button class="btn btn-secondary" onclick="copyKey()">Copy & Sign In</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ App Screen ═══ -->
+<div id="app-screen" class="hidden">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <h2>AI Generator</h2>
+
+    <div class="balance-card">
+      <div class="balance-label">Balance</div>
+      <div class="balance-value" id="sidebar-balance">0</div>
+      <button class="btn btn-primary btn-sm" onclick="openTopup()">Top Up</button>
+    </div>
+
+    <div class="sidebar-nav">
+      <button class="nav-btn active" data-page="generate" onclick="showPage('generate')">
+        New Generation
+      </button>
+      <button class="nav-btn" data-page="history" onclick="showPage('history')">
+        History
+      </button>
+    </div>
+
+    <button class="logout-btn" onclick="doLogout()">Log Out</button>
+  </div>
+
+  <!-- Main -->
+  <div class="main-content">
+
+    <!-- Generate page -->
+    <div id="page-generate">
+      <div class="page-title">New Generation</div>
+
+      <div class="gen-type-grid">
+        <div class="gen-type-card selected" data-type="text-to-image" onclick="selectType(this)">
+          <div class="icon">🖼️</div>
+          <div class="label">Text → Image</div>
+          <div class="cost">10 tokens</div>
+        </div>
+        <div class="gen-type-card" data-type="image-to-image" onclick="selectType(this)">
+          <div class="icon">🎨</div>
+          <div class="label">Image → Image</div>
+          <div class="cost">10 tokens</div>
+        </div>
+        <div class="gen-type-card" data-type="text-to-video" onclick="selectType(this)">
+          <div class="icon">🎬</div>
+          <div class="label">Text → Video</div>
+          <div class="cost">50 tokens</div>
+        </div>
+        <div class="gen-type-card" data-type="image-to-video" onclick="selectType(this)">
+          <div class="icon">📹</div>
+          <div class="label">Image → Video</div>
+          <div class="cost">50 tokens</div>
+        </div>
+      </div>
+
+      <div class="gen-form">
+        <div id="gen-alert"></div>
+
+        <div class="form-group">
+          <label>Prompt</label>
+          <textarea id="gen-prompt" rows="3" placeholder="Describe what you want to generate..."></textarea>
+        </div>
+
+        <div id="image-url-group" class="form-group hidden">
+          <label id="image-url-label">Image URL</label>
+          <input type="text" id="gen-image-url" placeholder="https://example.com/image.jpg">
+        </div>
+
+        <div class="form-group">
+          <label>Negative Prompt (optional)</label>
+          <input type="text" id="gen-negative" placeholder="low quality, blurry, defects">
+        </div>
+
+        <!-- Image params -->
+        <div id="image-params">
+          <div class="params-row">
+            <div class="form-group">
+              <label>Size</label>
+              <select id="gen-image-size">
+                <option value="square">Square</option>
+                <option value="square_hd">Square HD</option>
+                <option value="landscape_16_9">Landscape 16:9</option>
+                <option value="landscape_4_3">Landscape 4:3</option>
+                <option value="portrait_16_9">Portrait 16:9</option>
+                <option value="portrait_4_3">Portrait 4:3</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Count</label>
+              <select id="gen-num-images">
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Video params -->
+        <div id="video-params" class="hidden">
+          <div class="params-row">
+            <div class="form-group">
+              <label>Resolution</label>
+              <select id="gen-resolution">
+                <option value="480p">480p</option>
+                <option value="720p">720p</option>
+                <option value="1080p" selected>1080p</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Duration</label>
+              <select id="gen-duration">
+                <option value="5">5 sec</option>
+                <option value="10">10 sec</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group" id="aspect-ratio-group">
+            <label>Aspect Ratio</label>
+            <select id="gen-aspect-ratio">
+              <option value="16:9">16:9</option>
+              <option value="9:16">9:16</option>
+              <option value="1:1">1:1</option>
+            </select>
+          </div>
+        </div>
+
+        <button class="btn btn-primary" onclick="submitGeneration()" id="gen-submit-btn">
+          Generate
+        </button>
+      </div>
+    </div>
+
+    <!-- History page -->
+    <div id="page-history" class="hidden">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
+        <div class="page-title" style="margin-bottom:0;">History</div>
+        <button class="btn btn-secondary btn-sm" onclick="loadHistory()">Refresh</button>
+      </div>
+      <div id="history-list"></div>
+      <div id="history-empty" class="hidden" style="color:var(--text2);text-align:center;padding:40px;">
+        No generations yet. Create your first one!
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Topup Modal ═══ -->
+<div id="topup-modal" class="modal-overlay hidden" onclick="if(event.target===this)closeTopup()">
+  <div class="modal">
+    <h3>Top Up Balance</h3>
+    <div id="topup-alert"></div>
+    <div class="form-group">
+      <label>Amount (USD)</label>
+      <input type="number" id="topup-amount" value="10" min="1" step="1">
+      <div style="color:var(--text2);font-size:12px;margin-top:6px;" id="topup-tokens-hint">
+        = 1000 tokens
+      </div>
+    </div>
+    <div style="display:flex;gap:12px;">
+      <button class="btn btn-primary" onclick="doTopup()" id="topup-btn">Pay with Stripe</button>
+      <button class="btn btn-secondary" onclick="closeTopup()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = '';
+let apiKey = localStorage.getItem('apiKey') || '';
+let currentType = 'text-to-image';
+let pollTimers = {};
+
+if (apiKey) {
+  showApp();
+}
+
+(function handleStripeReturn() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('topup') === 'success') {
+    window.history.replaceState({}, '', '/');
+    setTimeout(() => {
+      if (apiKey) refreshBalance();
+    }, 2000);
+  }
+})();
+
+/* ── Auth ── */
+function showTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach((b, i) => b.classList.toggle('active', (tab === 'login' ? i === 0 : i === 1)));
+  document.getElementById('tab-login').classList.toggle('hidden', tab !== 'login');
+  document.getElementById('tab-register').classList.toggle('hidden', tab !== 'register');
+  document.getElementById('auth-alert').innerHTML = '';
+}
+
+async function doLogin() {
+  const key = document.getElementById('login-key').value.trim();
+  if (!key) return showAuthAlert('Enter your API key', 'error');
+  try {
+    const r = await apiFetch('/balance', {}, key);
+    if (r.ok) {
+      apiKey = key;
+      localStorage.setItem('apiKey', apiKey);
+      showApp();
+    } else {
+      showAuthAlert('Invalid API key', 'error');
+    }
+  } catch { showAuthAlert('Connection error', 'error'); }
+}
+
+async function doRegister() {
+  const uid = document.getElementById('reg-userid').value.trim();
+  if (!uid) return showAuthAlert('Enter a user ID', 'error');
+  try {
+    const r = await fetch(API + '/auth/register', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({external_user_id: uid})
+    });
+    const data = await r.json();
+    if (r.ok) {
+      document.getElementById('reg-result').classList.remove('hidden');
+      document.getElementById('reg-apikey').textContent = data.api_key;
+      document.getElementById('auth-alert').innerHTML = '';
+    } else {
+      showAuthAlert(data.detail || 'Registration failed', 'error');
+    }
+  } catch { showAuthAlert('Connection error', 'error'); }
+}
+
+function copyKey() {
+  const key = document.getElementById('reg-apikey').textContent;
+  navigator.clipboard.writeText(key);
+  document.getElementById('login-key').value = key;
+  showTab('login');
+  doLogin();
+}
+
+function doLogout() {
+  apiKey = '';
+  localStorage.removeItem('apiKey');
+  Object.values(pollTimers).forEach(clearInterval);
+  pollTimers = {};
+  document.getElementById('auth-screen').classList.remove('hidden');
+  document.getElementById('app-screen').classList.add('hidden');
+}
+
+function showAuthAlert(msg, type) {
+  document.getElementById('auth-alert').innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
+}
+
+/* ── App ── */
+async function showApp() {
+  document.getElementById('auth-screen').classList.add('hidden');
+  document.getElementById('app-screen').classList.remove('hidden');
+  await refreshBalance();
+  showPage('generate');
+}
+
+function showPage(page) {
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.page === page));
+  document.getElementById('page-generate').classList.toggle('hidden', page !== 'generate');
+  document.getElementById('page-history').classList.toggle('hidden', page !== 'history');
+  if (page === 'history') loadHistory();
+}
+
+async function refreshBalance() {
+  try {
+    const r = await apiFetch('/balance');
+    if (r.ok) {
+      const d = await r.json();
+      document.getElementById('sidebar-balance').textContent = parseFloat(d.balance).toFixed(0);
+    }
+  } catch {}
+}
+
+/* ── Generation ── */
+function selectType(el) {
+  document.querySelectorAll('.gen-type-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  currentType = el.dataset.type;
+
+  const isVideo = currentType.includes('video');
+  const needsImage = currentType.startsWith('image');
+
+  document.getElementById('image-params').classList.toggle('hidden', isVideo);
+  document.getElementById('video-params').classList.toggle('hidden', !isVideo);
+  document.getElementById('image-url-group').classList.toggle('hidden', !needsImage);
+  document.getElementById('aspect-ratio-group').classList.toggle('hidden', currentType !== 'text-to-video');
+
+  if (currentType === 'image-to-image') {
+    document.getElementById('image-url-label').textContent = 'Image URL(s), comma-separated';
+  } else {
+    document.getElementById('image-url-label').textContent = 'Image URL';
+  }
+}
+
+async function submitGeneration() {
+  const prompt = document.getElementById('gen-prompt').value.trim();
+  if (!prompt) return showGenAlert('Enter a prompt', 'error');
+
+  const body = {prompt};
+  const neg = document.getElementById('gen-negative').value.trim();
+  if (neg) body.negative_prompt = neg;
+
+  if (currentType === 'text-to-image') {
+    body.image_size = document.getElementById('gen-image-size').value;
+    body.num_images = parseInt(document.getElementById('gen-num-images').value);
+  } else if (currentType === 'image-to-image') {
+    const urls = document.getElementById('gen-image-url').value.trim();
+    if (!urls) return showGenAlert('Enter image URL(s)', 'error');
+    body.image_urls = urls.split(',').map(u => u.trim());
+    body.image_size = document.getElementById('gen-image-size').value;
+    body.num_images = parseInt(document.getElementById('gen-num-images').value);
+  } else if (currentType === 'text-to-video') {
+    body.resolution = document.getElementById('gen-resolution').value;
+    body.duration = document.getElementById('gen-duration').value;
+    body.aspect_ratio = document.getElementById('gen-aspect-ratio').value;
+  } else if (currentType === 'image-to-video') {
+    const url = document.getElementById('gen-image-url').value.trim();
+    if (!url) return showGenAlert('Enter image URL', 'error');
+    body.image_url = url;
+    body.resolution = document.getElementById('gen-resolution').value;
+    body.duration = document.getElementById('gen-duration').value;
+  }
+
+  const btn = document.getElementById('gen-submit-btn');
+  btn.disabled = true;
+  btn.textContent = 'Submitting...';
+
+  try {
+    const r = await apiFetch(`/generations/${currentType}`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body)
+    });
+    const data = await r.json();
+    if (r.ok) {
+      showGenAlert(`Task created! ID: ${data.task_id} | Cost: ${data.cost} tokens`, 'success');
+      refreshBalance();
+      document.getElementById('gen-prompt').value = '';
+    } else {
+      showGenAlert(data.detail || 'Generation failed', 'error');
+    }
+  } catch { showGenAlert('Connection error', 'error'); }
+  finally {
+    btn.disabled = false;
+    btn.textContent = 'Generate';
+  }
+}
+
+function showGenAlert(msg, type) {
+  document.getElementById('gen-alert').innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
+  setTimeout(() => { document.getElementById('gen-alert').innerHTML = ''; }, 8000);
+}
+
+/* ── History ── */
+async function loadHistory() {
+  try {
+    const r = await apiFetch('/generations?limit=50');
+    if (!r.ok) return;
+    const data = await r.json();
+    const list = document.getElementById('history-list');
+    const empty = document.getElementById('history-empty');
+
+    if (!data.items.length) {
+      list.innerHTML = '';
+      empty.classList.remove('hidden');
+      return;
+    }
+
+    empty.classList.add('hidden');
+    list.innerHTML = data.items.map(t => taskCard(t)).join('');
+
+    data.items.forEach(t => {
+      if (['created', 'queued', 'processing'].includes(t.status)) {
+        startPolling(t.task_id);
+      }
+    });
+  } catch {}
+}
+
+function taskCard(t) {
+  const typeLabel = t.type.replace(/_/g, ' → ').replace(/\b\w/g, c => c.toUpperCase());
+  let result = '';
+  if (t.status === 'completed' && t.result_url) {
+    if (t.type.includes('video')) {
+      result = `<div class="task-result"><video src="${t.result_url}" controls muted></video></div>`;
+    } else {
+      result = `<div class="task-result"><img src="${t.result_url}" alt="Result"></div>`;
+    }
+    result += `<div class="task-actions">
+      <a href="${API}/generations/${t.task_id}/download" class="btn btn-secondary btn-sm" target="_blank"
+         onclick="event.preventDefault();downloadFile('${t.task_id}')">Download</a>
+    </div>`;
+  }
+  let errorMsg = '';
+  if (t.status === 'failed' && t.error_message) {
+    errorMsg = `<div class="alert alert-error" style="margin-top:8px;margin-bottom:0;">${t.error_message}</div>`;
+  }
+
+  return `<div class="task-card" id="task-${t.task_id}">
+    <div class="task-info">
+      <div class="task-prompt">${escHtml(t.prompt.substring(0, 120))}${t.prompt.length > 120 ? '...' : ''}</div>
+      <div class="task-meta">
+        <span class="status-badge status-${t.status}">${t.status}</span>
+        <span>${typeLabel}</span>
+        <span>${parseFloat(t.cost).toFixed(0)} tokens</span>
+        <span>${new Date(t.created_at).toLocaleString()}</span>
+      </div>
+      ${result}
+      ${errorMsg}
+    </div>
+  </div>`;
+}
+
+function startPolling(taskId) {
+  if (pollTimers[taskId]) return;
+  pollTimers[taskId] = setInterval(async () => {
+    try {
+      const r = await apiFetch(`/generations/${taskId}`);
+      if (!r.ok) return;
+      const t = await r.json();
+      const el = document.getElementById(`task-${taskId}`);
+      if (el) el.outerHTML = taskCard(t);
+      if (['completed', 'failed'].includes(t.status)) {
+        clearInterval(pollTimers[taskId]);
+        delete pollTimers[taskId];
+        if (t.status === 'failed') refreshBalance();
+      }
+    } catch {}
+  }, 3000);
+}
+
+async function downloadFile(taskId) {
+  try {
+    const r = await apiFetch(`/generations/${taskId}/download`);
+    if (!r.ok) return;
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `generation_${taskId}`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  } catch {}
+}
+
+/* ── Topup (Stripe Checkout) ── */
+const TOKENS_PER_DOLLAR = 100;
+
+function openTopup() {
+  document.getElementById('topup-modal').classList.remove('hidden');
+  updateTokensHint();
+}
+function closeTopup() {
+  document.getElementById('topup-modal').classList.add('hidden');
+  document.getElementById('topup-alert').innerHTML = '';
+}
+
+function updateTokensHint() {
+  const amount = parseInt(document.getElementById('topup-amount').value) || 0;
+  document.getElementById('topup-tokens-hint').textContent = `= ${amount * TOKENS_PER_DOLLAR} tokens`;
+}
+document.addEventListener('DOMContentLoaded', () => {
+  const inp = document.getElementById('topup-amount');
+  if (inp) inp.addEventListener('input', updateTokensHint);
+});
+
+async function doTopup() {
+  const amountUsd = parseInt(document.getElementById('topup-amount').value);
+  if (!amountUsd || amountUsd < 1) return;
+
+  const btn = document.getElementById('topup-btn');
+  btn.disabled = true;
+  btn.textContent = 'Redirecting...';
+
+  try {
+    const r = await apiFetch('/balance/checkout', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({amount_usd: amountUsd})
+    });
+
+    if (r.ok) {
+      const data = await r.json();
+      window.location.href = data.checkout_url;
+    } else {
+      const d = await r.json();
+      document.getElementById('topup-alert').innerHTML = `<div class="alert alert-error">${d.detail || 'Payment failed'}</div>`;
+      btn.disabled = false;
+      btn.textContent = 'Pay with Stripe';
+    }
+  } catch {
+    document.getElementById('topup-alert').innerHTML = '<div class="alert alert-error">Connection error</div>';
+    btn.disabled = false;
+    btn.textContent = 'Pay with Stripe';
+  }
+}
+
+/* ── Helpers ── */
+function apiFetch(path, opts = {}, key = null) {
+  const k = key || apiKey;
+  const headers = {...(opts.headers || {}), 'X-API-Key': k};
+  return fetch(API + path, {...opts, headers});
+}
+
+function escHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+</script>
+</body>
+</html>

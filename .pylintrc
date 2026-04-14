@@ -1,0 +1,27 @@
+[MAIN]
+load-plugins=pylint.extensions.no_self_use
+
+[MESSAGES CONTROL]
+disable=
+    C0114, # missing-module-docstring
+    C0115, # missing-class-docstring
+    C0116, # missing-function-docstring
+    R0903, # too-few-public-methods (Pydantic models, SQLAlchemy models)
+    R0901, # too-many-ancestors (SQLAlchemy TypeDecorator hierarchy)
+    R0902, # too-many-instance-attributes (dataclasses / domain entities)
+    E1101, # no-member (false positives with SQLAlchemy)
+    W0223, # abstract-method (ABC implementations via lazy import)
+    R0801, # duplicate-code
+    C0415, # import-outside-toplevel (lazy imports are intentional)
+    W0613, # unused-argument (FastAPI dependencies)
+    C0301, # line-too-long (handled by ruff formatter)
+
+[FORMAT]
+max-line-length=100
+
+[IMPORTS]
+allow-wildcard-with-all=no
+
+[TYPECHECK]
+ignored-modules=fal_client
+ignored-classes=SQLAlchemy,Mapped

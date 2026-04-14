@@ -1,0 +1,29 @@
+target-version = "py311"
+line-length = 100
+
+[lint]
+select = [
+    "E",     # pycodestyle errors
+    "W",     # pycodestyle warnings
+    "F",     # pyflakes
+    "I",     # isort
+    "N",     # pep8-naming
+    "UP",    # pyupgrade
+    "B",     # flake8-bugbear
+    "SIM",   # flake8-simplify
+    "T20",   # flake8-print
+    "RUF",   # ruff-specific
+]
+ignore = [
+    "E501",   # line length handled by formatter
+    "B008",   # do not perform function calls in argument defaults (FastAPI Depends)
+    "RUF012", # mutable class attributes (SQLAlchemy models)
+]
+
+[lint.per-file-ignores]
+"tests/**" = ["T20"]
+"loadtests/**" = ["T20"]
+
+[format]
+quote-style = "double"
+indent-style = "space"

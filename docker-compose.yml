@@ -1,0 +1,99 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - app-logs:/app/logs
+    restart: unless-stopped
+
+  celery-worker:
+    build: .
+    command: celery -A src.workers.celery_app worker --loglevel=info --concurrency=4
+    env_file:
+      - .env
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - app-logs:/app/logs
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-ai_generator}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: >
+      sh -c "if [ -n \"$REDIS_PASS\" ]; then
+        redis-server --requirepass \"$REDIS_PASS\";
+      else
+        redis-server;
+      fi"
+    environment:
+      REDIS_PASS: ${REDIS_PASS:-}
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: >
+        sh -c "if [ -n \"$REDIS_PASS\" ]; then
+          redis-cli -a \"$REDIS_PASS\" ping;
+        else
+          redis-cli ping;
+        fi"
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    depends_on:
+      - app
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  redis-data:
+  prometheus-data:
+  app-logs:
