@@ -15,6 +15,7 @@ disable=
     C0415, # import-outside-toplevel (lazy imports are intentional)
     W0613, # unused-argument (FastAPI dependencies)
     C0301, # line-too-long (handled by ruff formatter)
+    R0914, # too-many-locals (complex async tasks)
 
 [FORMAT]
 max-line-length=100

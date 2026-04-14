@@ -135,3 +135,10 @@ async def topup_user(client: AsyncClient, external_user_id: str, amount: int) ->
     body = json.dumps(payload).encode()
     headers = signed_payment_headers(payload)
     await client.post("/webhooks/payment", content=body, headers=headers)
+
+
+def fal_webhook_token(task_id: str) -> str:
+    """Generate a valid Fal webhook token for test calls."""
+    from src.core.security import compute_webhook_signature
+
+    return compute_webhook_signature(task_id.encode(), "change-me-to-a-random-secret-key")

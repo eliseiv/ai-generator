@@ -4,13 +4,33 @@ from unittest.mock import patch
 import pytest
 from httpx import AsyncClient
 
-from tests.conftest import topup_user
+from tests.conftest import fal_webhook_token, topup_user
+
+
+@pytest.mark.asyncio
+async def test_fal_webhook_no_token(client: AsyncClient):
+    response = await client.post(
+        "/webhooks/fal/00000000-0000-0000-0000-000000000000",
+        json={"images": [{"url": "https://example.com/img.png"}]},
+    )
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_fal_webhook_bad_token(client: AsyncClient):
+    response = await client.post(
+        "/webhooks/fal/00000000-0000-0000-0000-000000000000?token=invalid",
+        json={"images": [{"url": "https://example.com/img.png"}]},
+    )
+    assert response.status_code == 403
 
 
 @pytest.mark.asyncio
 async def test_fal_webhook_unknown_task(client: AsyncClient):
+    task_id = "00000000-0000-0000-0000-000000000000"
+    token = fal_webhook_token(task_id)
     response = await client.post(
-        "/webhooks/fal/00000000-0000-0000-0000-000000000000",
+        f"/webhooks/fal/{task_id}?token={token}",
         json={"images": [{"url": "https://example.com/img.png"}]},
     )
     assert response.status_code == 200
@@ -34,9 +54,10 @@ async def test_fal_webhook_completes_task(client: AsyncClient):
 
     with patch("src.workers.webhook_tasks.deliver_webhook") as mock_wh:
         mock_wh.delay = lambda *a, **kw: None
+        token = fal_webhook_token(task_id)
 
         fal_resp = await client.post(
-            f"/webhooks/fal/{task_id}",
+            f"/webhooks/fal/{task_id}?token={token}",
             json={
                 "images": [
                     {"url": "https://fal.media/files/test.png", "content_type": "image/png"}
@@ -73,8 +94,9 @@ async def test_fal_webhook_error_triggers_refund(client: AsyncClient):
         task_id = create_resp.json()["task_id"]
         cost = float(create_resp.json()["cost"])
 
+    token = fal_webhook_token(task_id)
     fal_resp = await client.post(
-        f"/webhooks/fal/{task_id}",
+        f"/webhooks/fal/{task_id}?token={token}",
         json={"error": "Generation failed due to content filter"},
     )
     assert fal_resp.status_code == 200

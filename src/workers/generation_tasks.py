@@ -46,7 +46,10 @@ async def _submit_to_provider(task_id: str) -> None:
         await session.commit()
 
         generation_type = task.type.value if isinstance(task.type, GenerationType) else task.type
-        webhook_url = f"{settings.fal_webhook_base_url}/webhooks/fal/{task_id}"
+        from src.core.security import compute_webhook_signature
+
+        token = compute_webhook_signature(task_id.encode(), settings.secret_key)
+        webhook_url = f"{settings.fal_webhook_base_url}/webhooks/fal/{task_id}?token={token}"
 
         max_retries = 3
         for attempt in range(1, max_retries + 1):
@@ -163,3 +166,43 @@ async def _poll_task_status(task_id: str) -> None:
 @celery_app.task(name="generation.poll_status")
 def poll_task_status(task_id: str) -> None:
     asyncio.run(_poll_task_status(task_id))
+
+
+async def _check_stuck_tasks() -> None:
+    """Find tasks stuck in queued/processing for >5 minutes and poll or fail them."""
+    from datetime import UTC, datetime, timedelta
+
+    from src.infrastructure.database.repositories.task_repo import SQLAlchemyTaskRepository
+    from src.infrastructure.database.session import get_session_factory
+    from src.services.balance_service import refund_balance
+
+    factory = get_session_factory()
+    async with factory() as session:
+        task_repo = SQLAlchemyTaskRepository(session)
+        cutoff = datetime.now(UTC) - timedelta(minutes=5)
+        stuck_tasks = await task_repo.list_stuck(older_than=cutoff)
+
+        for task in stuck_tasks:
+            if task.fal_request_id:
+                poll_task_status.delay(str(task.id))
+            else:
+                await task_repo.update(
+                    task.id,
+                    status=TaskStatus.FAILED,
+                    error_message="Task timed out: never submitted to provider",
+                )
+                await refund_balance(session, task.user_id, task.cost, task.id)
+                generation_errors_total.labels(
+                    type=task.type.value if hasattr(task.type, "value") else task.type,
+                    error_type="stuck_timeout",
+                ).inc()
+                logger.warning("Stuck task failed and refunded", extra={"task_id": str(task.id)})
+
+        await session.commit()
+        if stuck_tasks:
+            logger.info("Checked %d stuck tasks", len(stuck_tasks))
+
+
+@celery_app.task(name="generation.check_stuck")
+def check_stuck_tasks() -> None:
+    asyncio.run(_check_stuck_tasks())

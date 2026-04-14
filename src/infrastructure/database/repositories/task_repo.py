@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Any
 from uuid import UUID
 
@@ -5,7 +6,7 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domain.interfaces.task_repository import TaskRepository
-from src.infrastructure.database.models import Task
+from src.infrastructure.database.models import Task, TaskStatus
 
 
 class SQLAlchemyTaskRepository(TaskRepository):
@@ -34,6 +35,20 @@ class SQLAlchemyTaskRepository(TaskRepository):
             .where(Task.user_id == user_id)
             .order_by(Task.created_at.desc())
             .offset(offset)
+            .limit(limit)
+        )
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def list_stuck(self, older_than: datetime, limit: int = 50) -> list[Task]:
+        """Find tasks stuck in queued/processing for too long."""
+        stmt = (
+            select(Task)
+            .where(
+                Task.status.in_([TaskStatus.QUEUED, TaskStatus.PROCESSING]),
+                Task.updated_at < older_than,
+            )
+            .order_by(Task.updated_at.asc())
             .limit(limit)
         )
         result = await self._session.execute(stmt)

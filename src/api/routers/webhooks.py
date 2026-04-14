@@ -54,7 +54,22 @@ async def payment_webhook(request: Request, session: DBSession):
 
 
 @router.post("/fal/{task_id}", status_code=status.HTTP_200_OK)
-async def fal_webhook(task_id: str, session: DBSession, payload: dict[str, Any] | None = None):
+async def fal_webhook(
+    task_id: str,
+    session: DBSession,
+    token: str = "",
+    payload: dict[str, Any] | None = None,
+):
+    from src.core.security import compute_webhook_signature
+
+    expected = compute_webhook_signature(task_id.encode(), settings.secret_key)
+    if not token or not __import__("hmac").compare_digest(token, expected):
+        logger.warning("Fal webhook: invalid token for task %s", task_id)
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid webhook token.",
+        )
+
     from src.services.generation_service import handle_fal_webhook
 
     await handle_fal_webhook(session, task_id, payload or {})
