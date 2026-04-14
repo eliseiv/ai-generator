@@ -33,12 +33,6 @@
 
 ### 1. Клонировать и настроить
 
-```bash
-git clone <repo-url>
-cd ai-generator
-cp .env.example .env
-```
-
 Отредактируйте `.env`:
 - `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT` — PostgreSQL
 - `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASS` — Redis
