@@ -2,10 +2,9 @@ import asyncio
 import logging
 from uuid import UUID
 
-from celery import shared_task
-
 from src.core.config import settings
 from src.infrastructure.database.models import WebhookDeliveryStatus
+from src.workers.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +26,7 @@ async def _deliver_webhook(task_id: str) -> None:
             raise WebhookDeliveryError(f"Webhook delivery failed for task {task_id}")
 
 
-@shared_task(
+@celery_app.task(
     name="webhook.deliver",
     bind=True,
     max_retries=settings.webhook_max_retries,

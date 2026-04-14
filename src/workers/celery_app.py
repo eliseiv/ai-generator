@@ -6,6 +6,10 @@ celery_app = Celery(
     "ai_generator",
     broker=settings.celery_broker_url,
     backend=settings.celery_result_backend,
+    include=[
+        "src.workers.generation_tasks",
+        "src.workers.webhook_tasks",
+    ],
 )
 
 celery_app.conf.update(
@@ -18,5 +22,3 @@ celery_app.conf.update(
     task_acks_late=True,
     worker_prefetch_multiplier=1,
 )
-
-celery_app.autodiscover_tasks(["src.workers"])

@@ -3,7 +3,7 @@ import logging
 import time
 from uuid import UUID
 
-from celery import shared_task
+from fal_client.client import FalClientError
 
 from src.core.config import settings
 from src.infrastructure.database.models import GenerationType, TaskStatus
@@ -12,6 +12,7 @@ from src.infrastructure.metrics import (
     generation_errors_total,
     generation_requests_total,
 )
+from src.workers.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +74,7 @@ async def _submit_to_provider(task_id: str) -> None:
                     },
                 )
                 return
-            except (OSError, ValueError, RuntimeError) as e:
+            except (OSError, ValueError, RuntimeError, FalClientError) as e:
                 logger.error(
                     "Failed to submit to Fal.ai",
                     extra={"task_id": task_id, "attempt": attempt, "error": str(e)},
@@ -94,7 +95,7 @@ async def _submit_to_provider(task_id: str) -> None:
                 await asyncio.sleep(2**attempt)
 
 
-@shared_task(name="generation.submit")
+@celery_app.task(name="generation.submit")
 def submit_generation(task_id: str) -> None:
     asyncio.run(_submit_to_provider(task_id))
 
@@ -152,13 +153,13 @@ async def _poll_task_status(task_id: str) -> None:
                 generation_errors_total.labels(
                     type=generation_type, error_type="generation_failed"
                 ).inc()
-        except (OSError, ValueError, RuntimeError) as e:
+        except (OSError, ValueError, RuntimeError, FalClientError) as e:
             logger.warning(
                 "Poll status failed (task may still be processing)",
                 extra={"task_id": task_id, "error": str(e)},
             )
 
 
-@shared_task(name="generation.poll_status")
+@celery_app.task(name="generation.poll_status")
 def poll_task_status(task_id: str) -> None:
     asyncio.run(_poll_task_status(task_id))

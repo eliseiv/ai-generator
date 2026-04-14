@@ -78,7 +78,7 @@ class FallbackProvider(GenerationProvider):
             result = await provider.submit(generation_type, prompt, params, webhook_url)
             self.circuit_breaker.record_success()
             return result
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             self.circuit_breaker.record_failure()
             logger.error("Provider submit failed: %s", e)
             if provider is self.primary and self.circuit_breaker.is_open:
